@@ -138,3 +138,72 @@ export const getReplayTranscriptTool = {
     }
   },
 }
+
+const REPLAY_RAW_DEFAULT_CAP = 200 * 1024 // 200 KB of decoded JSON
+
+export const getReplayRawTool = {
+  name: "repro_get_replay_raw",
+  config: {
+    description:
+      "Fetch the raw rrweb event stream for a ticket as JSON. The decompressed size is capped at 200KB unless you pass acknowledgeSize: true. Use repro_get_replay_transcript first — raw events are noisy and rarely needed.",
+    inputSchema: z.object({
+      ticketId: z.string().uuid(),
+      acknowledgeSize: z.boolean().optional(),
+    }),
+  },
+  handler: async (
+    input: { ticketId: string; acknowledgeSize?: boolean },
+    ctx: McpRequestContext,
+  ) => {
+    const [report] = await db
+      .select({ projectId: reports.projectId })
+      .from(reports)
+      .where(eq(reports.id, input.ticketId))
+      .limit(1)
+    if (!report) throw mcpError("NOT_FOUND", `ticket ${input.ticketId} not found`)
+    await requireProjectRoleByUser(ctx.userId, report.projectId, "viewer")
+
+    const [replayAttachment] = await db
+      .select({
+        storageKey: reportAttachments.storageKey,
+      })
+      .from(reportAttachments)
+      .where(
+        and(eq(reportAttachments.reportId, input.ticketId), eq(reportAttachments.kind, "replay")),
+      )
+      .limit(1)
+    if (!replayAttachment) {
+      throw mcpError("NOT_FOUND", `no replay captured for ticket ${input.ticketId}`)
+    }
+
+    const storage = await getStorage()
+    const obj = await storage.get(replayAttachment.storageKey)
+    let decompressed: Buffer
+    try {
+      decompressed = gunzipSync(Buffer.from(obj.bytes))
+    } catch (e) {
+      throw mcpError(
+        "INVALID_INPUT",
+        `replay attachment for ticket ${input.ticketId} could not be decompressed: ${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      )
+    }
+    if (decompressed.byteLength > REPLAY_RAW_DEFAULT_CAP && !input.acknowledgeSize) {
+      throw mcpError(
+        "PAYLOAD_TOO_LARGE",
+        `replay events are ${decompressed.byteLength} bytes (cap ${REPLAY_RAW_DEFAULT_CAP}). Re-call with acknowledgeSize: true to receive the full payload.`,
+      )
+    }
+    const events = JSON.parse(decompressed.toString("utf-8")) as RrwebEvent[]
+
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify({ events, byteCount: decompressed.byteLength }, null, 2),
+        },
+      ],
+    }
+  },
+}
