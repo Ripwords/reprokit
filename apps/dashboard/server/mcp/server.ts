@@ -1,6 +1,14 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { listProjectsTool } from "./tools/projects"
-import { getTicketTool } from "./tools/tickets"
+import { getTicketTool, listTicketsTool } from "./tools/tickets"
+import { listTicketCommentsTool } from "./tools/comments"
+import { listProjectMembersTool } from "./tools/members"
+import {
+  getScreenshotTool,
+  getReplayTranscriptTool,
+  getReplayRawTool,
+  getTicketCookiesTool,
+} from "./tools/reports"
 import type { McpRequestContext } from "./context"
 import { McpToolError } from "./errors"
 
@@ -25,6 +33,87 @@ export function buildMcpServer(ctx: McpRequestContext): McpServer {
   server.registerTool(getTicketTool.name, getTicketTool.config, async (input) => {
     try {
       return await getTicketTool.handler(input as { ticketId: string }, ctx)
+    } catch (err) {
+      return toolErrorResult(err)
+    }
+  })
+
+  server.registerTool(listTicketsTool.name, listTicketsTool.config, async (input) => {
+    try {
+      return await listTicketsTool.handler(
+        input as Parameters<typeof listTicketsTool.handler>[0],
+        ctx,
+      )
+    } catch (err) {
+      return toolErrorResult(err)
+    }
+  })
+
+  server.registerTool(listTicketCommentsTool.name, listTicketCommentsTool.config, async (input) => {
+    try {
+      return await listTicketCommentsTool.handler(
+        input as Parameters<typeof listTicketCommentsTool.handler>[0],
+        ctx,
+      )
+    } catch (err) {
+      return toolErrorResult(err)
+    }
+  })
+
+  server.registerTool(listProjectMembersTool.name, listProjectMembersTool.config, async (input) => {
+    try {
+      return await listProjectMembersTool.handler(
+        input as Parameters<typeof listProjectMembersTool.handler>[0],
+        ctx,
+      )
+    } catch (err) {
+      return toolErrorResult(err)
+    }
+  })
+
+  server.registerTool(getScreenshotTool.name, getScreenshotTool.config, async (input) => {
+    try {
+      return await getScreenshotTool.handler(
+        input as Parameters<typeof getScreenshotTool.handler>[0],
+        ctx,
+      )
+    } catch (err) {
+      return toolErrorResult(err)
+    }
+  })
+
+  server.registerTool(
+    getReplayTranscriptTool.name,
+    getReplayTranscriptTool.config,
+    async (input) => {
+      try {
+        return await getReplayTranscriptTool.handler(
+          input as Parameters<typeof getReplayTranscriptTool.handler>[0],
+          ctx,
+        )
+      } catch (err) {
+        return toolErrorResult(err)
+      }
+    },
+  )
+
+  server.registerTool(getReplayRawTool.name, getReplayRawTool.config, async (input) => {
+    try {
+      return await getReplayRawTool.handler(
+        input as Parameters<typeof getReplayRawTool.handler>[0],
+        ctx,
+      )
+    } catch (err) {
+      return toolErrorResult(err)
+    }
+  })
+
+  server.registerTool(getTicketCookiesTool.name, getTicketCookiesTool.config, async (input) => {
+    try {
+      return await getTicketCookiesTool.handler(
+        input as Parameters<typeof getTicketCookiesTool.handler>[0],
+        ctx,
+      )
     } catch (err) {
       return toolErrorResult(err)
     }
