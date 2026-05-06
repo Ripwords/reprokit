@@ -113,6 +113,15 @@ function collectInnerText(id: number, dom: Map<number, NodeMeta>): string {
   return out
 }
 
+function pathFromHref(href: string): string {
+  try {
+    const u = new URL(href)
+    return `${u.pathname}${u.search}`
+  } catch {
+    return href
+  }
+}
+
 export function buildReplayTranscript(
   events: RrwebEvent[],
   opts: BuildReplayTranscriptOptions,
@@ -137,14 +146,62 @@ export function buildReplayTranscript(
   const endTs = events[events.length - 1]!.timestamp
   const lines: string[] = []
 
+  type InputBuffer = { id: number; value: string; firstTs: number }
+  let pendingInput: InputBuffer | null = null
+
+  function flushInput(): void {
+    if (!pendingInput) return
+    const t = ((pendingInput.firstTs - startTs) / 1000).toFixed(1)
+    lines.push(
+      `[+${t}s] typed "${pendingInput.value}" into ${resolveSelector(pendingInput.id, dom)}`,
+    )
+    pendingInput = null
+  }
+
   for (const e of events) {
-    if (e.type === 3 && (e.data as { source?: number }).source === 2) {
+    const t = ((e.timestamp - startTs) / 1000).toFixed(1)
+    // 4 = Meta (navigation / page load)
+    if (e.type === 4) {
+      flushInput()
+      const href = (e.data as { href?: string }).href ?? ""
+      lines.push(`[+${t}s] loaded ${pathFromHref(href)}`)
+      continue
+    }
+    // 6 = Plugin (console capture lives here in rrweb)
+    if (e.type === 6) {
+      const payload = e.data as {
+        plugin?: string
+        payload?: { level?: string; payload?: unknown[] }
+      }
+      if (payload.plugin?.startsWith("rrweb/console") && payload.payload?.level === "error") {
+        flushInput()
+        const msg = (payload.payload.payload ?? []).map((p) => String(p)).join(" ")
+        lines.push(`[+${t}s] console.error ${msg}`)
+      }
+      continue
+    }
+    if (e.type !== 3) continue
+    const source = (e.data as { source?: number }).source
+    // 2 = MouseInteraction
+    if (source === 2) {
       const id = (e.data as { id?: number }).id
       if (typeof id !== "number") continue
-      const t = ((e.timestamp - startTs) / 1000).toFixed(1)
+      flushInput()
       lines.push(`[+${t}s] click ${resolveSelector(id, dom)}`)
+      continue
+    }
+    // 5 = Input
+    if (source === 5) {
+      const id = (e.data as { id?: number }).id
+      const text = (e.data as { text?: string }).text ?? ""
+      if (typeof id !== "number") continue
+      if (pendingInput && pendingInput.id !== id) flushInput()
+      if (!pendingInput) pendingInput = { id, value: text, firstTs: e.timestamp }
+      else pendingInput.value = text
+      continue
     }
   }
+  flushInput()
 
   const transcript =
     `Replay (${((endTs - startTs) / 1000).toFixed(1)}s, ${events.length} events)\n\n` +

@@ -1,0 +1,76 @@
+{
+  "events": [
+    {
+      "type": 4,
+      "timestamp": 1700000000000,
+      "data": { "href": "https://example.com/checkout?cart=abc-123", "width": 1440, "height": 900 }
+    },
+    {
+      "type": 2,
+      "timestamp": 1700000000010,
+      "data": {
+        "node": {
+          "id": 1,
+          "type": 2,
+          "tagName": "html",
+          "attributes": {},
+          "childNodes": [
+            {
+              "id": 2,
+              "type": 2,
+              "tagName": "body",
+              "attributes": {},
+              "childNodes": [
+                {
+                  "id": 10,
+                  "type": 2,
+                  "tagName": "input",
+                  "attributes": { "name": "email" },
+                  "childNodes": []
+                },
+                {
+                  "id": 11,
+                  "type": 2,
+                  "tagName": "input",
+                  "attributes": { "name": "cardNumber" },
+                  "childNodes": []
+                },
+                {
+                  "id": 12,
+                  "type": 2,
+                  "tagName": "button",
+                  "attributes": { "type": "submit" },
+                  "childNodes": [{ "id": 13, "type": 3, "textContent": "Pay $49.99" }]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": 3,
+      "timestamp": 1700000002100,
+      "data": { "source": 5, "id": 10, "text": "alice@example.com" }
+    },
+    { "type": 3, "timestamp": 1700000003400, "data": { "source": 5, "id": 11, "text": "•••" } },
+    { "type": 3, "timestamp": 1700000004900, "data": { "source": 2, "type": 2, "id": 12 } },
+    {
+      "type": 6,
+      "timestamp": 1700000005800,
+      "data": {
+        "plugin": "rrweb/console@1",
+        "payload": {
+          "level": "error",
+          "trace": [],
+          "payload": ["TypeError: Cannot read properties of undefined (reading 'token')"]
+        }
+      }
+    },
+    {
+      "type": 4,
+      "timestamp": 1700000006000,
+      "data": { "href": "https://example.com/checkout/error", "width": 1440, "height": 900 }
+    }
+  ]
+}
