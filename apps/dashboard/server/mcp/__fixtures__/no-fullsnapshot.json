@@ -1,0 +1,14 @@
+{
+  "events": [
+    {
+      "type": 4,
+      "timestamp": 1700000000000,
+      "data": { "href": "https://example.com/", "width": 1440, "height": 900 }
+    },
+    {
+      "type": 3,
+      "timestamp": 1700000001200,
+      "data": { "source": 2, "type": 2, "id": 42, "x": 100, "y": 100 }
+    }
+  ]
+}

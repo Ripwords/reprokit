@@ -9,4 +9,11 @@ describe("buildReplayTranscript", () => {
     expect(out.truncated).toBe(false)
     expect(out.transcript).toBe("Replay (0 events)")
   })
+
+  it("emits an unknown-element placeholder when no FullSnapshot is present", async () => {
+    const fixture = await Bun.file(`${import.meta.dir}/__fixtures__/no-fullsnapshot.json`).json()
+    const out = buildReplayTranscript(fixture.events, { verbosity: "summary" })
+    expect(out.transcript).toContain("<unknown element")
+    expect(out.eventCount).toBe(fixture.events.length)
+  })
 })
