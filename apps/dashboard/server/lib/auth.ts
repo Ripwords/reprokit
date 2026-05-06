@@ -3,6 +3,8 @@ import { betterAuth } from "better-auth"
 import { APIError, createAuthMiddleware } from "better-auth/api"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { magicLink } from "better-auth/plugins/magic-link"
+import { jwt } from "better-auth/plugins/jwt"
+import { oauthProvider } from "@better-auth/oauth-provider"
 import { db } from "../db"
 import { appSettings, session, user } from "../db/schema"
 import { env, getAuthRateLimitEnabled } from "./env"
@@ -161,6 +163,23 @@ export const auth = betterAuth({
         })
       },
     }),
+    ...(env.MCP_ENABLED
+      ? [
+          jwt(),
+          oauthProvider({
+            loginPage: "/sign-in",
+            consentPage: "/oauth/consent",
+            allowDynamicClientRegistration: true,
+            allowUnauthenticatedClientRegistration: true,
+            scopes: ["mcp:full"] as const,
+            // scopeExpirations controls access token lifetime per scope.
+            // refreshTokenExpiresIn (global) handles the 30-day refresh window.
+            accessTokenExpiresIn: env.MCP_ACCESS_TOKEN_TTL_SECONDS,
+            refreshTokenExpiresIn: 60 * 60 * 24 * 30,
+            validAudiences: [`${env.BETTER_AUTH_URL}/api/mcp`],
+          }),
+        ]
+      : []),
   ],
   user: {
     additionalFields: {
