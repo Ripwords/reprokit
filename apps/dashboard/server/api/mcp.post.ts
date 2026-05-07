@@ -4,6 +4,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { env } from "../lib/env"
 import { buildContextFromJwt } from "../mcp/context"
 import { buildMcpServer } from "../mcp/server"
+import { defaultMcpAccessChecker } from "../mcp/access-check"
 
 // better-auth mounts the auth handler at /api/auth, so the JWT issuer is
 // BETTER_AUTH_URL + "/api/auth" (better-auth sets iss = ctx.context.baseURL,
@@ -21,6 +22,7 @@ const handler = mcpHandler(
   },
   async (req: Request, jwt: Record<string, unknown>) => {
     const ctx = buildContextFromJwt(jwt)
+    await defaultMcpAccessChecker.assert(ctx.userId)
     const server = buildMcpServer(ctx)
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
