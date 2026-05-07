@@ -55,6 +55,10 @@ export default defineConfig({
           text: "Tester extension",
           items: [{ text: "Chrome extension", link: "/guide/extension" }],
         },
+        {
+          text: "AI assistants",
+          items: [{ text: "MCP", link: "/guide/mcp" }],
+        },
       ],
       "/self-hosting/": [
         {
@@ -67,6 +71,7 @@ export default defineConfig({
             { text: "Integrations", link: "/self-hosting/integrations" },
             { text: "Operations", link: "/self-hosting/operations" },
             { text: "Compatibility", link: "/self-hosting/compatibility" },
+            { text: "AI assistants (MCP)", link: "/self-hosting/mcp" },
           ],
         },
       ],
