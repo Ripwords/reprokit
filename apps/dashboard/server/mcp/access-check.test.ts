@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm"
 import { randomBytes } from "node:crypto"
 import { db } from "../db"
 import { appSettings, user } from "../db/schema"
-import { assertMcpUserAllowed } from "./access-check"
+import { defaultMcpAccessChecker, makeMcpAccessChecker } from "./access-check"
 
 beforeEach(async () => {
   await db.execute(sql`TRUNCATE "user" RESTART IDENTITY CASCADE`)
@@ -41,16 +41,16 @@ async function seedUser(opts: {
 describe("assertMcpUserAllowed", () => {
   it("passes for an active user with empty allowlist", async () => {
     const userId = await seedUser({ email: "alice@example.com" })
-    await expect(assertMcpUserAllowed(userId)).resolves.toBeUndefined()
+    await expect(defaultMcpAccessChecker.assert(userId)).resolves.toBeUndefined()
   })
 
   it("throws for a disabled user", async () => {
     const userId = await seedUser({ email: "alice@example.com", status: "disabled" })
-    await expect(assertMcpUserAllowed(userId)).rejects.toThrow(/disabled|FORBIDDEN/i)
+    await expect(defaultMcpAccessChecker.assert(userId)).rejects.toThrow(/disabled|FORBIDDEN/i)
   })
 
   it("throws when user record is missing", async () => {
-    await expect(assertMcpUserAllowed("nonexistent")).rejects.toThrow()
+    await expect(defaultMcpAccessChecker.assert("nonexistent")).rejects.toThrow()
   })
 
   it("throws when user's domain is no longer on the allowlist", async () => {
@@ -59,7 +59,9 @@ describe("assertMcpUserAllowed", () => {
       .update(appSettings)
       .set({ allowedEmailDomains: ["other-domain.com"] })
       .where(sql`true`)
-    await expect(assertMcpUserAllowed(userId)).rejects.toThrow(/domain|allowlist|FORBIDDEN/i)
+    await expect(defaultMcpAccessChecker.assert(userId)).rejects.toThrow(
+      /domain|allowlist|FORBIDDEN/i,
+    )
   })
 
   it("passes when user's domain is on the allowlist", async () => {
@@ -68,6 +70,14 @@ describe("assertMcpUserAllowed", () => {
       .update(appSettings)
       .set({ allowedEmailDomains: ["example.com"] })
       .where(sql`true`)
-    await expect(assertMcpUserAllowed(userId)).resolves.toBeUndefined()
+    await expect(defaultMcpAccessChecker.assert(userId)).resolves.toBeUndefined()
+  })
+
+  it("throws 429 when the user exceeds the rate limit", async () => {
+    const userId = await seedUser({ email: "ratelimit@example.com" })
+    const tightChecker = makeMcpAccessChecker({ rateLimit: { perMinute: 2 } })
+    await tightChecker.assert(userId)
+    await tightChecker.assert(userId)
+    await expect(tightChecker.assert(userId)).rejects.toThrow(/rate|429/i)
   })
 })
