@@ -1,3 +1,7 @@
+/** Nuxt payload cache key for the projects list (`/api/projects`). Shared so
+ *  the list page and the delete handler invalidate the same slot. */
+export const PROJECTS_LIST_KEY = "projects-list"
+
 /**
  * Wrapper around `useFetch` that sends the browser's session cookie to the
  * dashboard API so protected endpoints see the caller's identity during SSR

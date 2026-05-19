@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue"
 import type { ProjectDTO } from "@reprojs/shared"
+import { PROJECTS_LIST_KEY } from "~/composables/useApi"
 import ConfirmDeleteDialog from "~/components/common/confirm-delete-dialog.vue"
 
 const route = useRoute()
@@ -157,7 +158,7 @@ async function confirmDelete() {
     // The projects list (`/`) caches `/api/projects` under this key. Without
     // clearing it, client-side nav back to `/` shows the deleted project
     // until a hard refresh.
-    clearNuxtData("projects-list")
+    clearNuxtData(PROJECTS_LIST_KEY)
     router.push("/")
   } catch (err) {
     toast.add({

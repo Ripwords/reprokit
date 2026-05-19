@@ -257,6 +257,12 @@ describe("GET /api/admin/overview", () => {
     expect(byDate[day3Str]).toBe(1)
     expect(byDate[day10Str]).toBe(0)
   })
+})
+
+describe("GET /api/projects", () => {
+  afterEach(async () => {
+    await truncateDomain()
+  })
 
   test("GET /api/projects excludes soft-deleted projects", async () => {
     const adminId = await createUser("padmin@example.com", "admin")
@@ -283,7 +289,4 @@ describe("GET /api/admin/overview", () => {
     expect(ids).toContain(keep)
     expect(ids).not.toContain(gone)
   })
-
-  // Appease unused-import linter without removing the helper for future tests.
-  void eq
 })

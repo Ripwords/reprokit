@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ProjectDTO } from "@reprojs/shared"
+import { PROJECTS_LIST_KEY } from "~/composables/useApi"
 import AppEmptyState from "~/components/common/app-empty-state.vue"
 
 useHead({ title: "Projects" })
@@ -30,7 +31,7 @@ const {
   pending,
   refresh,
 } = await useApi<ProjectDTO[]>("/api/projects", {
-  key: "projects-list",
+  key: PROJECTS_LIST_KEY,
   default: () => [],
 })
 
