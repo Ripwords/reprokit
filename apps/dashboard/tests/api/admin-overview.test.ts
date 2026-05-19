@@ -258,6 +258,32 @@ describe("GET /api/admin/overview", () => {
     expect(byDate[day10Str]).toBe(0)
   })
 
+  test("GET /api/projects excludes soft-deleted projects", async () => {
+    const adminId = await createUser("padmin@example.com", "admin")
+    const keep = await seedProject({
+      name: "Keep",
+      publicKey: "rp_pk_KEEPPRJ00000000000000000",
+      allowedOrigins: ["http://localhost:4000"],
+      createdBy: adminId,
+    })
+    const gone = await seedProject({
+      name: "Gone",
+      publicKey: "rp_pk_GONEPRJ00000000000000000",
+      allowedOrigins: ["http://localhost:4001"],
+      createdBy: adminId,
+    })
+    await db.update(projects).set({ deletedAt: new Date() }).where(eq(projects.id, gone))
+
+    const cookie = await signIn("padmin@example.com")
+    const { status, body } = await apiFetch<Array<{ id: string }>>("/api/projects", {
+      headers: { cookie },
+    })
+    expect(status).toBe(200)
+    const ids = body.map((p) => p.id)
+    expect(ids).toContain(keep)
+    expect(ids).not.toContain(gone)
+  })
+
   // Appease unused-import linter without removing the helper for future tests.
   void eq
 })

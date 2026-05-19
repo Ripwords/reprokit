@@ -30,6 +30,7 @@ const {
   pending,
   refresh,
 } = await useApi<ProjectDTO[]>("/api/projects", {
+  key: "projects-list",
   default: () => [],
 })
 

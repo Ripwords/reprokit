@@ -154,6 +154,10 @@ async function confirmDelete() {
       credentials: "include",
     })
     toast.add({ title: "Project deleted", color: "success", icon: "i-heroicons-check-circle" })
+    // The projects list (`/`) caches `/api/projects` under this key. Without
+    // clearing it, client-side nav back to `/` shows the deleted project
+    // until a hard refresh.
+    clearNuxtData("projects-list")
     router.push("/")
   } catch (err) {
     toast.add({
