@@ -55,12 +55,22 @@ const posting = ref(false)
 const unlinkOpen = ref(false)
 const ghSubmitting = ref(false)
 
+// GitHub sync is async (in-process worker); poll the report until the issue
+// link lands, ~12s ceiling (12 attempts × 1s).
+const GITHUB_SYNC_POLL = { attempts: 12, intervalMs: 1_000 } as const
+
+// Aborts the in-flight github-sync poll if the drawer/route unmounts mid-poll,
+// so a stale success/info toast can't surface on an unrelated page.
+const syncAbort = new AbortController()
+onUnmounted(() => syncAbort.abort())
+
 async function createIssue() {
   ghSubmitting.value = true
   try {
     await $fetch(`/api/projects/${props.projectId}/reports/${props.report.id}/github-sync`, {
       method: "POST",
       credentials: "include",
+      signal: syncAbort.signal,
     })
     // github-sync is async: it enqueues an in-process worker and returns
     // immediately. Poll the report until the worker links the issue, then
@@ -69,10 +79,12 @@ async function createIssue() {
       () =>
         $fetch<ReportDetailDTO>(`/api/projects/${props.projectId}/reports/${props.report.id}`, {
           credentials: "include",
+          signal: syncAbort.signal,
         }),
       (r) => r.githubIssueNumber !== null,
-      { attempts: 12, intervalMs: 1000 },
+      GITHUB_SYNC_POLL,
     )
+    if (syncAbort.signal.aborted) return
     emit("patched")
     if (linked) {
       toast.add({
@@ -89,6 +101,7 @@ async function createIssue() {
       })
     }
   } catch (err) {
+    if (syncAbort.signal.aborted) return
     toast.add({
       title: "Could not create GitHub issue",
       description: err instanceof Error ? err.message : undefined,
