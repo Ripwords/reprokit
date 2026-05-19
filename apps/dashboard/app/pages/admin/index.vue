@@ -67,7 +67,9 @@ const topProjects = computed(() =>
 )
 const hasTopProjects = computed(() => topProjects.value.some((p) => p.open > 0))
 const topProjectsCategories = { open: { name: "Open reports", color: C.open } }
-const topProjectsXFormatter = (tick: number): string => topProjects.value[tick]?.project ?? ""
+// Horizontal bars put the category on the Y axis, so the index→label
+// formatter must be the Y formatter (the X axis is the numeric value).
+const topProjectsYFormatter = (tick: number): string => topProjects.value[tick]?.project ?? ""
 
 const EVENT_LABEL: Record<string, string> = {
   status_changed: "changed status",
@@ -197,7 +199,7 @@ function describeEvent(e: AdminOverviewDTO["recentEvents"][number]): string {
           <div class="px-5 py-4 border-b border-default">
             <h2 class="text-sm font-semibold text-default tracking-tight">Status distribution</h2>
           </div>
-          <div class="p-5 flex justify-center">
+          <div class="p-5 flex justify-center donut-segments">
             <DonutChart
               v-if="hasStatus"
               :data="statusData"
@@ -224,7 +226,7 @@ function describeEvent(e: AdminOverviewDTO["recentEvents"][number]): string {
               :categories="topProjectsCategories"
               :y-axis="['open']"
               :orientation="Orientation.Horizontal"
-              :x-formatter="topProjectsXFormatter"
+              :y-formatter="topProjectsYFormatter"
             />
             <div v-else class="text-sm text-muted py-10 text-center">No open reports yet.</div>
           </div>
@@ -339,3 +341,14 @@ function describeEvent(e: AdminOverviewDTO["recentEvents"][number]): string {
     />
   </div>
 </template>
+
+<style scoped>
+/* Unovis draws a fixed light stroke between donut segments that doesn't
+   follow the theme, so on the dark dashboard it shows as white slivers.
+   Repaint it with the card background token (theme-safe in light + dark).
+   Scoped to the donut card only so the area/bar chart paths are untouched. */
+.donut-segments :deep(svg path) {
+  stroke: var(--ui-bg);
+  stroke-width: 1.5px;
+}
+</style>
