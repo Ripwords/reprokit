@@ -3,7 +3,7 @@ import { afterEach, describe, expect, setDefaultTimeout, test } from "bun:test"
 import { eq } from "drizzle-orm"
 import type { AdminOverviewDTO } from "@reprojs/shared"
 import { db } from "../../server/db"
-import { githubIntegrations, projectMembers, reports } from "../../server/db/schema"
+import { githubIntegrations, projectMembers, projects, reports } from "../../server/db/schema"
 import {
   apiFetch,
   createUser,
@@ -184,6 +184,74 @@ describe("GET /api/admin/overview", () => {
     })
     expect(body.recentReports.length).toBe(10)
     expect(body.counts.total).toBe(12)
+  })
+
+  test("volume is a 30-day zero-filled UTC series, newest last, excludes deleted projects", async () => {
+    const adminId = await createUser("admin@example.com", "admin")
+    const live = await seedProject({
+      name: "Live",
+      publicKey: "rp_pk_LIVEVOL00000000000000000",
+      allowedOrigins: ["http://localhost:4000"],
+      createdBy: adminId,
+    })
+    const dead = await seedProject({
+      name: "Dead",
+      publicKey: "rp_pk_DEADVOL00000000000000000",
+      allowedOrigins: ["http://localhost:4001"],
+      createdBy: adminId,
+    })
+
+    const DAY = 86_400_000
+    const now = Date.now()
+    const utcMidnight = (msAgoDays: number) => {
+      const d = new Date(now - msAgoDays * DAY)
+      return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 12))
+    }
+    const ctx = {
+      pageUrl: "http://localhost:4000/p",
+      userAgent: "UA",
+      viewport: { w: 1000, h: 800 },
+      timestamp: new Date().toISOString(),
+    }
+
+    await db.insert(reports).values([
+      { projectId: live, title: "t1", description: null, context: ctx, createdAt: utcMidnight(0) },
+      { projectId: live, title: "t2", description: null, context: ctx, createdAt: utcMidnight(0) },
+      { projectId: live, title: "t3", description: null, context: ctx, createdAt: utcMidnight(3) },
+    ])
+    await db.insert(reports).values(
+      Array.from({ length: 5 }, (_, i) => ({
+        projectId: dead,
+        title: `d${i}`,
+        description: null,
+        context: ctx,
+        createdAt: utcMidnight(0),
+      })),
+    )
+    await db.update(projects).set({ deletedAt: new Date() }).where(eq(projects.id, dead))
+
+    const cookie = await signIn("admin@example.com")
+    const { status, body } = await apiFetch<AdminOverviewDTO>("/api/admin/overview", {
+      headers: { cookie },
+    })
+    expect(status).toBe(200)
+
+    expect(body.volume.length).toBe(30)
+    for (let i = 1; i < body.volume.length; i++) {
+      const prev = new Date(`${body.volume[i - 1]!.date}T00:00:00Z`).getTime()
+      const cur = new Date(`${body.volume[i]!.date}T00:00:00Z`).getTime()
+      expect(cur - prev).toBe(DAY)
+    }
+
+    const todayStr = new Date(now).toISOString().slice(0, 10)
+    const day3Str = new Date(now - 3 * DAY).toISOString().slice(0, 10)
+    const byDate = Object.fromEntries(body.volume.map((v) => [v.date, v.count]))
+
+    expect(body.volume[body.volume.length - 1]!.date).toBe(todayStr)
+    expect(byDate[todayStr]).toBe(2)
+    expect(byDate[day3Str]).toBe(1)
+    const day10Str = new Date(now - 10 * DAY).toISOString().slice(0, 10)
+    expect(byDate[day10Str]).toBe(0)
   })
 
   // Appease unused-import linter without removing the helper for future tests.

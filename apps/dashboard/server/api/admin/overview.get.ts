@@ -8,6 +8,7 @@ import { requireInstallAdmin } from "../../lib/permissions"
 
 const DAY_MS = 86_400_000
 const VOLUME_DAYS = 7
+const TREND_DAYS = 30
 
 function startOfUtcDay(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
@@ -19,6 +20,7 @@ export default defineEventHandler(async (event): Promise<AdminOverviewDTO> => {
   const now = new Date()
   const today = startOfUtcDay(now)
   const sevenDaysAgo = new Date(today.getTime() - (VOLUME_DAYS - 1) * DAY_MS)
+  const trendStart = new Date(today.getTime() - (TREND_DAYS - 1) * DAY_MS)
 
   const [
     totalRows,
@@ -30,6 +32,7 @@ export default defineEventHandler(async (event): Promise<AdminOverviewDTO> => {
     recentReportRows,
     recentEventRows,
     perProjectRows,
+    volumeRows,
   ] = await Promise.all([
     // 1. Total reports across install (ignoring deleted projects).
     db
@@ -133,6 +136,19 @@ export default defineEventHandler(async (event): Promise<AdminOverviewDTO> => {
         sql`coalesce(sum(case when ${reports.status} = 'open' then 1 else 0 end), 0) desc`,
         projects.name,
       ),
+
+    // 10. Daily report volume for the last TREND_DAYS, grouped by UTC day.
+    //     Counts only non-deleted projects. Sparse — days with zero reports
+    //     are absent here and get zero-filled in JS below.
+    db
+      .select({
+        day: sql<string>`to_char(${reports.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`,
+        c: count(),
+      })
+      .from(reports)
+      .innerJoin(projects, eq(projects.id, reports.projectId))
+      .where(and(isNull(projects.deletedAt), gte(reports.createdAt, trendStart)))
+      .groupBy(sql`1`),
   ])
 
   const total = totalRows[0]?.total ?? 0
@@ -145,6 +161,15 @@ export default defineEventHandler(async (event): Promise<AdminOverviewDTO> => {
 
   const byPriority = { urgent: 0, high: 0, normal: 0, low: 0 } as Record<string, number>
   for (const r of priorityCounts) byPriority[r.key] = r.c
+
+  // Zero-fill: every UTC day from trendStart..today inclusive must appear,
+  // ordered oldest → newest. `trendStart` is UTC midnight, so slicing the
+  // ISO string yields the correct YYYY-MM-DD day key.
+  const volumeByDay = new Map(volumeRows.map((r) => [r.day, r.c]))
+  const volume = Array.from({ length: TREND_DAYS }, (_, i) => {
+    const date = new Date(trendStart.getTime() + i * DAY_MS).toISOString().slice(0, 10)
+    return { date, count: volumeByDay.get(date) ?? 0 }
+  })
 
   return {
     counts: {
@@ -186,5 +211,6 @@ export default defineEventHandler(async (event): Promise<AdminOverviewDTO> => {
       newLast7Count: r.newLast7Count,
       totalCount: r.totalCount,
     })),
+    volume,
   }
 })
