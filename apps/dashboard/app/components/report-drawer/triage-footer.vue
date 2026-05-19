@@ -10,6 +10,7 @@
 <script setup lang="ts">
 import type {
   GithubConfigDTO,
+  ReportDetailDTO,
   ReportPriority,
   ReportStatus,
   ReportSummaryDTO,
@@ -19,6 +20,7 @@ import AssigneesPicker from "./pickers/assignees-picker.vue"
 import MilestonePicker from "./pickers/milestone-picker.vue"
 import UnlinkDialog from "~/components/integrations/github/unlink-dialog.vue"
 import { safeHref } from "~/composables/use-safe-href"
+import { pollUntil } from "~/composables/use-poll-until"
 import { useGithubIntegration } from "~/composables/use-github-integration"
 
 interface Props {
@@ -60,8 +62,32 @@ async function createIssue() {
       method: "POST",
       credentials: "include",
     })
+    // github-sync is async: it enqueues an in-process worker and returns
+    // immediately. Poll the report until the worker links the issue, then
+    // refetch once so the parent renders consistent data. ~12s ceiling.
+    const linked = await pollUntil(
+      () =>
+        $fetch<ReportDetailDTO>(`/api/projects/${props.projectId}/reports/${props.report.id}`, {
+          credentials: "include",
+        }),
+      (r) => r.githubIssueNumber !== null,
+      { attempts: 12, intervalMs: 1000 },
+    )
     emit("patched")
-    toast.add({ title: "GitHub issue created", color: "success", icon: "i-heroicons-check-circle" })
+    if (linked) {
+      toast.add({
+        title: "GitHub issue created",
+        color: "success",
+        icon: "i-heroicons-check-circle",
+      })
+    } else {
+      toast.add({
+        title: "Issue is being created",
+        description: "It'll appear here shortly.",
+        color: "info",
+        icon: "i-heroicons-information-circle",
+      })
+    }
   } catch (err) {
     toast.add({
       title: "Could not create GitHub issue",
