@@ -25,6 +25,47 @@ const recentActivity = computed(() => overview.value?.recentEvents ?? [])
 const perProject = computed(() => overview.value?.perProject ?? [])
 const projectCount = computed(() => overview.value?.projects.total ?? 0)
 
+// ── Chart data ───────────────────────────────────────────────────────────
+// Theme-aligned hex (charts need concrete colours, not Tailwind tokens).
+const C = {
+  primary: "#6366f1",
+  open: "#3b82f6",
+  inProgress: "#f59e0b",
+  resolved: "#22c55e",
+  closed: "#94a3b8",
+} as const
+
+const volume = computed(() => overview.value?.volume ?? [])
+const hasVolume = computed(() => volume.value.some((v) => v.count > 0))
+const volumeCategories = { count: { name: "Reports", color: C.primary } }
+// vue-chrts x-formatter receives the data-array index; map it back to a
+// short MM-DD label.
+const volumeXFormatter = (i: number): string => {
+  const d = volume.value[i]?.date
+  return d ? d.slice(5) : ""
+}
+
+const statusCounts = computed(() => overview.value?.counts.byStatus)
+const STATUS_ORDER = ["open", "in_progress", "resolved", "closed"] as const
+const statusData = computed<number[]>(() => STATUS_ORDER.map((s) => statusCounts.value?.[s] ?? 0))
+const hasStatus = computed(() => statusData.value.some((n) => n > 0))
+const statusCategories = {
+  Open: { name: "Open", color: C.open },
+  "In progress": { name: "In progress", color: C.inProgress },
+  Resolved: { name: "Resolved", color: C.resolved },
+  Closed: { name: "Closed", color: C.closed },
+}
+
+const topProjects = computed(() =>
+  perProject.value
+    .toSorted((a, b) => b.openCount - a.openCount)
+    .slice(0, 8)
+    .map((p) => ({ project: p.name, open: p.openCount })),
+)
+const hasTopProjects = computed(() => topProjects.value.some((p) => p.open > 0))
+const topProjectsCategories = { open: { name: "Open reports", color: C.open } }
+const topProjectsXFormatter = (i: number): string => topProjects.value[i]?.project ?? ""
+
 const EVENT_LABEL: Record<string, string> = {
   status_changed: "changed status",
   priority_changed: "changed priority",
@@ -126,6 +167,66 @@ function describeEvent(e: AdminOverviewDTO["recentEvents"][number]): string {
           {{ metrics?.projectsWithGithub ?? 0 }} connected to GitHub
         </div>
       </NuxtLink>
+    </div>
+
+    <!-- Insights -->
+    <div v-if="projectCount > 0" class="space-y-4">
+      <div class="rounded-xl border border-default bg-default">
+        <div class="px-5 py-4 border-b border-default">
+          <h2 class="text-sm font-semibold text-default tracking-tight">Reports over time</h2>
+          <p class="mt-0.5 text-sm text-muted">Reports received per day, last 30 days.</p>
+        </div>
+        <div class="p-5">
+          <AreaChart
+            v-if="hasVolume"
+            :data="volume"
+            :height="240"
+            :categories="volumeCategories"
+            :x-formatter="volumeXFormatter"
+            :x-num-ticks="6"
+          />
+          <div v-else class="text-sm text-muted py-10 text-center">No reports yet.</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="rounded-xl border border-default bg-default">
+          <div class="px-5 py-4 border-b border-default">
+            <h2 class="text-sm font-semibold text-default tracking-tight">Status distribution</h2>
+          </div>
+          <div class="p-5 flex justify-center">
+            <DonutChart
+              v-if="hasStatus"
+              :data="statusData"
+              :height="240"
+              :categories="statusCategories"
+              :radius="4"
+              :arc-width="24"
+            />
+            <div v-else class="text-sm text-muted py-10 text-center">No reports yet.</div>
+          </div>
+        </div>
+
+        <div class="rounded-xl border border-default bg-default">
+          <div class="px-5 py-4 border-b border-default">
+            <h2 class="text-sm font-semibold text-default tracking-tight">
+              Top projects by open reports
+            </h2>
+          </div>
+          <div class="p-5">
+            <BarChart
+              v-if="hasTopProjects"
+              :data="topProjects"
+              :height="240"
+              :categories="topProjectsCategories"
+              :y-axis="['open']"
+              orientation="horizontal"
+              :x-formatter="topProjectsXFormatter"
+            />
+            <div v-else class="text-sm text-muted py-10 text-center">No open reports yet.</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Two-column: recent reports + activity -->
