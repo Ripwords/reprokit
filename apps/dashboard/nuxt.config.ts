@@ -2,7 +2,7 @@ import tailwindcss from "@tailwindcss/vite"
 
 export default defineNuxtConfig({
   compatibilityDate: "2026-04-17",
-  modules: ["@nuxt/ui", "@nuxt/fonts", "nuxt-security", "@vueuse/nuxt"],
+  modules: ["@nuxt/ui", "@nuxt/fonts", "nuxt-security", "@vueuse/nuxt", "nuxt-charts"],
   css: ["~/assets/css/tailwind.css"],
   // Scan source at build time and bundle every `<UIcon>` / `i-*` reference
   // into the client JS. Without this, icons fall through to `@nuxt/icon`'s

@@ -34,6 +34,7 @@
     "marked": "^18.0.2",
     "nodemailer": "^8.0.5",
     "nuxt": "^4.4.2",
+    "nuxt-charts": "^2.1.4",
     "nuxt-security": "2.4.0",
     "pg": "^8.20.0",
     "rrweb-player": "^2.0.0-alpha.4",
