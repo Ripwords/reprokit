@@ -25,6 +25,7 @@
     "@reprojs/integrations-github": "workspace:*",
     "@reprojs/shared": "workspace:*",
     "@tailwindcss/vite": "^4.2.1",
+    "@unovis/ts": "^1.6.5",
     "@vueuse/nuxt": "14.2.1",
     "better-auth": "^1.6.9",
     "clamscan": "^2.4.0",

@@ -39,10 +39,10 @@ const C = {
 const volume = computed(() => overview.value?.volume ?? [])
 const hasVolume = computed(() => volume.value.some((v) => v.count > 0))
 const volumeCategories = { count: { name: "Reports", color: C.primary } }
-// vue-chrts x-formatter receives the data-array index; map it back to a
-// short MM-DD label.
-const volumeXFormatter = (i: number): string => {
-  const d = volume.value[i]?.date
+// vue-chrts axis formatter's first arg is the tick value; for the ordinal
+// x-scale that equals the data-array index. Map it back to a short MM-DD label.
+const volumeXFormatter = (tick: number): string => {
+  const d = volume.value[tick]?.date
   return d ? d.slice(5) : ""
 }
 
@@ -50,6 +50,8 @@ const statusCounts = computed(() => overview.value?.counts.byStatus)
 const STATUS_ORDER = ["open", "in_progress", "resolved", "closed"] as const
 const statusData = computed<number[]>(() => STATUS_ORDER.map((s) => statusCounts.value?.[s] ?? 0))
 const hasStatus = computed(() => statusData.value.some((n) => n > 0))
+// DonutChart takes a number[] aligned by ORDER to these category entries
+// (STATUS_ORDER); the keys here only label the legend, they don't map data.
 const statusCategories = {
   Open: { name: "Open", color: C.open },
   "In progress": { name: "In progress", color: C.inProgress },
@@ -65,7 +67,7 @@ const topProjects = computed(() =>
 )
 const hasTopProjects = computed(() => topProjects.value.some((p) => p.open > 0))
 const topProjectsCategories = { open: { name: "Open reports", color: C.open } }
-const topProjectsXFormatter = (i: number): string => topProjects.value[i]?.project ?? ""
+const topProjectsXFormatter = (tick: number): string => topProjects.value[tick]?.project ?? ""
 
 const EVENT_LABEL: Record<string, string> = {
   status_changed: "changed status",
